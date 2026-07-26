@@ -1,4 +1,4 @@
-package com.metr.challenge.config;
+package com.doodle.challenge.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

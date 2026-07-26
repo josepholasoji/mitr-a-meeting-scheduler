@@ -1,7 +1,7 @@
-package com.metr.challenge.mapper;
+package com.doodle.challenge.mapper;
 
-import com.metr.challenge.dto.UserResponse;
-import com.metr.challenge.entity.User;
+import com.doodle.challenge.dto.UserResponse;
+import com.doodle.challenge.entity.User;
 import org.springframework.stereotype.Component;
 
 @Component

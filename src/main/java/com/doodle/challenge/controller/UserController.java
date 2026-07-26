@@ -1,9 +1,9 @@
-package com.metr.challenge.controller;
+package com.doodle.challenge.controller;
 
-import com.metr.challenge.dto.CreateUserCommand;
-import com.metr.challenge.dto.CreateUserRequest;
-import com.metr.challenge.dto.UserResponse;
-import com.metr.challenge.service.UserService;
+import com.doodle.challenge.dto.CreateUserCommand;
+import com.doodle.challenge.dto.CreateUserRequest;
+import com.doodle.challenge.dto.UserResponse;
+import com.doodle.challenge.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

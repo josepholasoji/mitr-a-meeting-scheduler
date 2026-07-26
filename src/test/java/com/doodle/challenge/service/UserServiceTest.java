@@ -1,11 +1,11 @@
-package com.metr.challenge.service;
+package com.doodle.challenge.service;
 
-import com.metr.challenge.dto.CreateUserCommand;
-import com.metr.challenge.dto.UserResponse;
-import com.metr.challenge.entity.User;
-import com.metr.challenge.exception.UserNotFoundException;
-import com.metr.challenge.mapper.UserMapper;
-import com.metr.challenge.repository.UserRepository;
+import com.doodle.challenge.dto.CreateUserCommand;
+import com.doodle.challenge.dto.UserResponse;
+import com.doodle.challenge.entity.User;
+import com.doodle.challenge.exception.UserNotFoundException;
+import com.doodle.challenge.mapper.UserMapper;
+import com.doodle.challenge.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

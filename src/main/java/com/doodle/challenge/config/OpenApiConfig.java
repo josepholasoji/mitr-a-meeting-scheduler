@@ -1,4 +1,4 @@
-package com.metr.challenge.config;
+package com.doodle.challenge.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;

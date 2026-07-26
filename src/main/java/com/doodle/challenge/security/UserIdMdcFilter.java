@@ -1,4 +1,4 @@
-package com.metr.challenge.security;
+package com.doodle.challenge.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

@@ -1,4 +1,4 @@
-package com.metr.challenge.config;
+package com.doodle.challenge.config;
 
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
