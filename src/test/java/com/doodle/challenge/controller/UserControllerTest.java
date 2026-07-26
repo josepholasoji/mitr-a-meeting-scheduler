@@ -1,12 +1,12 @@
 package com.doodle.challenge.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.doodle.challenge.WebSliceTestConfig;
 import com.doodle.challenge.dto.CreateUserRequest;
 import com.doodle.challenge.dto.UserResponse;
 import com.doodle.challenge.exception.GlobalExceptionHandler;
 import com.doodle.challenge.exception.UserNotFoundException;
 import com.doodle.challenge.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
