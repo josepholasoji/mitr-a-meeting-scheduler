@@ -3,6 +3,7 @@ package com.metr.challenge.controller;
 import com.metr.challenge.dto.CreateUserCommand;
 import com.metr.challenge.dto.CreateUserRequest;
 import com.metr.challenge.dto.UserResponse;
+import com.metr.challenge.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -15,17 +16,22 @@ import java.util.UUID;
 @Tag(name = "Users")
 public class UserController {
 
-    public UserController() {
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
     @PostMapping("/users")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Register a new user")
     public UserResponse createUser(@Valid @RequestBody CreateUserRequest request) {
-     }
+        return userService.createUser(new CreateUserCommand(request.name(), request.email(), request.password()));
+    }
 
     @GetMapping("/users/{id}")
     @Operation(summary = "Get a user by id")
     public UserResponse getUser(@PathVariable UUID id) {
+        return userService.getUser(id);
     }
 }
