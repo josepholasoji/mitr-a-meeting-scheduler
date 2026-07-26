@@ -3,11 +3,10 @@ package com.doodle.challenge.controller;
 import com.doodle.challenge.dto.AvailabilityQuery;
 import com.doodle.challenge.dto.AvailabilityResponse;
 import com.doodle.challenge.entity.TimeSlotStatus;
+import com.doodle.challenge.service.AvailabilityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
-import org.apache.commons.lang3.NotImplementedException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,8 +19,10 @@ import java.util.UUID;
 @Tag(name = "Availability")
 public class AvailabilityController {
 
+    private final AvailabilityService availabilityService;
 
-    public AvailabilityController() {
+    public AvailabilityController(AvailabilityService availabilityService) {
+        this.availabilityService = availabilityService;
     }
 
     @GetMapping("/users/{userId}/availability")
@@ -31,6 +32,6 @@ public class AvailabilityController {
             @Parameter(example = "2026-08-01T00:00:00Z") @RequestParam Instant from,
             @Parameter(example = "2026-08-02T00:00:00Z") @RequestParam Instant to,
             @RequestParam(required = false) TimeSlotStatus status) {
-       throw new NotImplementedException("Not implemented");    // Not implemented
+        return availabilityService.getAvailability(new AvailabilityQuery(userId, from, to, status));
     }
 }
