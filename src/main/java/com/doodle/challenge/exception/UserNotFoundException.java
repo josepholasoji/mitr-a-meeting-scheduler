@@ -1,4 +1,4 @@
-package com.metr.challenge.exception;
+package com.doodle.challenge.exception;
 
 import java.util.UUID;
 

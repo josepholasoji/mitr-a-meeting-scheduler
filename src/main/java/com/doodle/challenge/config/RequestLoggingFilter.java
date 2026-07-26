@@ -1,4 +1,4 @@
-package com.metr.challenge.config;
+package com.doodle.challenge.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

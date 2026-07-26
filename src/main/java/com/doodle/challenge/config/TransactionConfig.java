@@ -1,4 +1,4 @@
-package com.metr.challenge.config;
+package com.doodle.challenge.config;
 
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.context.annotation.Bean;

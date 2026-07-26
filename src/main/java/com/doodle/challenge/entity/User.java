@@ -1,6 +1,6 @@
-package com.metr.challenge.entity;
+package com.doodle.challenge.entity;
 
-import com.metr.challenge.event.UserCreated;
+import com.doodle.challenge.event.UserCreated;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;

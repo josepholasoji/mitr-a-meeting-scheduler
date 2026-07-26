@@ -1,6 +1,6 @@
-package com.metr.challenge.repository;
+package com.doodle.challenge.repository;
 
-import com.metr.challenge.entity.User;
+import com.doodle.challenge.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

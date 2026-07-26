@@ -1,4 +1,4 @@
-package com.metr.challenge.dto;
+package com.doodle.challenge.dto;
 
 import java.time.Instant;
 import java.util.UUID;
