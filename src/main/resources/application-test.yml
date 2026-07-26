@@ -1,0 +1,10 @@
+# Test-profile overrides. Not currently activated by the test suite itself - the
+# Testcontainers-backed tests (see AbstractPersistenceTest et al.) override the
+# datasource dynamically via @ServiceConnection regardless of active profile, and
+# @WebMvcTest/pure-unit tests need no datasource at all. Provided so a test profile is
+# available (SPRING_PROFILES_ACTIVE=test) for anyone wiring up a profile-based test
+# run in the future, without changing the current suite's behavior.
+management:
+  tracing:
+    sampling:
+      probability: 0.0

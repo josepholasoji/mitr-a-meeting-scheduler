@@ -1,0 +1,12 @@
+# Local development overrides. Activate with SPRING_PROFILES_ACTIVE=dev (not active by
+# default - application.yml alone is what docker-compose and a plain local run use).
+logging:
+  level:
+    com.doodle.challenge: DEBUG
+    org.hibernate.SQL: DEBUG
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
