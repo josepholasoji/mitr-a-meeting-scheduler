@@ -1,0 +1,366 @@
+Waiting for http://localhost:8088/actuator/health (timeout 60s)...
+App is healthy after 0s. Running collection against http://localhost:8088 ...
+newman
+
+Doodle Meeting Scheduler API
+
+□ 01 - Users
+└ Register Owner
+  POST http://localhost:8088/users [201 Created, 513B, 85ms]
+  √  Status code is 201
+  √  Response has expected fields
+  √  passwordHash is never exposed
+
+└ Register Participant
+  POST http://localhost:8088/users [201 Created, 527B, 66ms]
+  √  Status code is 201
+
+└ Register Outsider (never invited)
+  POST http://localhost:8088/users [201 Created, 522B, 65ms]
+  √  Status code is 201
+
+└ Register User - Validation Error (400)
+  POST http://localhost:8088/users [400 Bad Request, 528B, 5ms]
+  √  Status code is 400
+  √  Response is an RFC 7807 problem detail
+  √  Validation detail mentions all three invalid fields
+
+└ Register User - Duplicate Email (409/400)
+  POST http://localhost:8088/users [500 Internal Server Error, 459B, 66ms]
+  √  Duplicate email is rejected, not silently accepted
+
+└ Get User by Id (Owner)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45 [200 OK, 505B, 67ms]
+  √  Status code is 200
+  √  Returns the owner's own profile
+
+└ Get User - Not Found (404)
+  GET http://localhost:8088/users/f8fd57c2-7947-4b1f-a0b5-2b82aed028ef [404 Not Found, 525B, 66ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+└ Get User - Unauthorized, No Credentials (401)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45 [401 Unauthorized, 546B, 6ms]
+  √  Status code is 401
+
+└ Get User - Unauthorized, Bad Credentials (401)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45 [401 Unauthorized, 546B, 111ms]
+  √  Status code is 401
+
+□ 02 - Time Slots
+└ Create Time Slot - Primary (for the Meeting later)
+  POST http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/timeslots [201 Created, 614B, 69ms]
+  √  Status code is 201
+  √  New slot starts FREE
+
+└ Create Time Slot - Overlapping (409 Conflict)
+  POST http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/timeslots [409 Conflict, 614B, 62ms]
+  √  Status code is 409
+  √  Response is an RFC 7807 problem detail
+
+└ Create Time Slot - Partial Overlap (409 Conflict)
+  POST http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/timeslots [409 Conflict, 614B, 64ms]
+  √  Status code is 409
+  √  Response is an RFC 7807 problem detail
+
+└ Create Time Slot - Validation Error (400)
+  POST http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/timeslots [400 Bad Request, 512B, 63ms]
+  √  Status code is 400
+  √  Response is an RFC 7807 problem detail
+
+└ Create Time Slot - Invalid Range, Start After End (422)
+  POST http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/timeslots [422 Unprocessable Entity (WebDAV) (RFC 4918), 559B, 66ms]
+  √  Status code is 422
+  √  Response is an RFC 7807 problem detail
+
+└ Create Time Slot - User Not Found (404)
+  POST http://localhost:8088/users/6ad6a872-88a8-47d5-a7e5-a4a45ef3d0f4/timeslots [404 Not Found, 535B, 57ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+└ Create Time Slot - Second (for reschedule/status/delete demo)
+  POST http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/timeslots [201 Created, 614B, 66ms]
+  √  Status code is 201
+
+└ List Time Slots (paginated)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/timeslots?page=0&size=20 [200 OK, 939B, 62ms]
+  √  Status code is 200
+  √  Response has expected fields
+  √  Both slots created so far are present
+
+└ List Time Slots - Page Size Capped at 100
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/timeslots?page=0&size=99999 [200 OK, 940B, 62ms]
+  √  Status code is 200
+  √  Page size is capped, not honored verbatim
+
+└ Update Time Slot - Reschedule FREE Slot (200)
+  PATCH http://localhost:8088/timeslots/55d8348f-0d23-4c18-9a4b-0cb3cc2126b9 [200 OK, 606B, 69ms]
+  √  Status code is 200
+  √  Range was updated
+
+└ Update Time Slot - Not Found (404)
+  PATCH http://localhost:8088/timeslots/1c42b3af-f519-4107-8369-85760b0ce204 [404 Not Found, 534B, 61ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+└ Change Time Slot Status - Validation Error (400)
+  PATCH http://localhost:8088/timeslots/55d8348f-0d23-4c18-9a4b-0cb3cc2126b9/status [400 Bad Request, 483B, 63ms]
+  √  Status code is 400
+  √  Response is an RFC 7807 problem detail
+
+└ Change Time Slot Status - Mark BUSY (200)
+  PATCH http://localhost:8088/timeslots/55d8348f-0d23-4c18-9a4b-0cb3cc2126b9/status [200 OK, 606B, 66ms]
+  √  Status code is 200
+  √  Status is now BUSY
+
+└ Delete Time Slot - Conflict, Slot is BUSY (409)
+  DELETE http://localhost:8088/timeslots/55d8348f-0d23-4c18-9a4b-0cb3cc2126b9 [409 Conflict, 562B, 61ms]
+  √  Status code is 409
+  √  Response is an RFC 7807 problem detail
+
+└ Change Time Slot Status - Mark FREE Again (200)
+  PATCH http://localhost:8088/timeslots/55d8348f-0d23-4c18-9a4b-0cb3cc2126b9/status [200 OK, 606B, 79ms]
+  √  Status code is 200
+
+└ Delete Time Slot (204)
+  DELETE http://localhost:8088/timeslots/55d8348f-0d23-4c18-9a4b-0cb3cc2126b9 [204 No Content, 282B, 61ms]
+  √  Status code is 204
+
+└ Delete Time Slot - Already Deleted, Not Found (404)
+  DELETE http://localhost:8088/timeslots/55d8348f-0d23-4c18-9a4b-0cb3cc2126b9 [404 Not Found, 534B, 63ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+□ 03 - Meetings
+└ Schedule Meeting (converts timeSlotId, no initial invitees)
+  POST http://localhost:8088/meetings [201 Created, 872B, 70ms]
+  √  Status code is 201
+  √  Owner is auto-added as an ACCEPTED OWNER participant
+
+└ Schedule Meeting - Slot Not Free (409 Conflict)
+  POST http://localhost:8088/meetings [409 Conflict, 495B, 61ms]
+  √  Status code is 409
+  √  Response is an RFC 7807 problem detail
+
+└ Schedule Meeting - Time Slot Not Found (404)
+  POST http://localhost:8088/meetings [404 Not Found, 496B, 63ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+└ Schedule Meeting - Validation Error, Missing Fields (400)
+  POST http://localhost:8088/meetings [400 Bad Request, 468B, 60ms]
+  √  Status code is 400
+  √  Response is an RFC 7807 problem detail
+
+└ Schedule Meeting - Invitee Not Found (404)
+  POST http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/timeslots [201 Created, 614B, 76ms]
+  √  Status code is 201
+
+└ Schedule Meeting - Invitee Not Found, Follow-up (404)
+  POST http://localhost:8088/meetings [404 Not Found, 491B, 60ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+└ Update Time Slot - Conflict, Slot Not Free (409)
+  PATCH http://localhost:8088/timeslots/66086289-a7fc-4177-9cc1-3f16b54007e1 [409 Conflict, 608B, 61ms]
+  √  Status code is 409
+  √  Response is an RFC 7807 problem detail
+
+└ Delete Time Slot - Conflict, Backs an Active Meeting (409)
+  DELETE http://localhost:8088/timeslots/66086289-a7fc-4177-9cc1-3f16b54007e1 [409 Conflict, 562B, 78ms]
+  √  Status code is 409
+  √  Response is an RFC 7807 problem detail
+
+└ Get Meeting by Id (200)
+  GET http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5 [200 OK, 858B, 62ms]
+  √  Status code is 200
+  √  Response has expected fields
+
+└ Get Meeting - Not Found (404)
+  GET http://localhost:8088/meetings/e9d249bd-9267-4071-8fe2-0e488447485d [404 Not Found, 531B, 60ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+└ List Meetings for Owner (paginated)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/meetings?page=0&size=20 [200 OK, 924B, 68ms]
+  √  Status code is 200
+  √  Includes the scheduled meeting
+
+└ Update Meeting (Owner, 200)
+  PATCH http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5 [200 OK, 896B, 138ms]
+  √  Status code is 200
+  √  Title was updated
+
+└ Update Meeting - Forbidden, Not the Owner (403)
+  PATCH http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5 [403 Forbidden, 589B, 71ms]
+  √  Status code is 403
+  √  Response is an RFC 7807 problem detail
+
+└ Update Meeting - Validation Error, Blank Title (400)
+  PATCH http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5 [400 Bad Request, 475B, 91ms]
+  √  Status code is 400
+  √  Response is an RFC 7807 problem detail
+
+└ Update Meeting - Not Found (404)
+  PATCH http://localhost:8088/meetings/c22856a3-058b-4ee3-9239-d7c3847475e0 [404 Not Found, 531B, 61ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+□ 04 - Participants
+└ Invite Participant (Owner invites Participant, 201)
+  POST http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5/participants [201 Created, 447B, 83ms]
+  √  Status code is 201
+  √  New participant starts INVITED
+
+└ Invite Participant - Duplicate (409 Conflict)
+  POST http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5/participants [409 Conflict, 601B, 63ms]
+  √  Status code is 409
+  √  Response is an RFC 7807 problem detail
+
+└ Invite Participant - Forbidden, Not the Owner (403)
+  POST http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5/participants [403 Forbidden, 602B, 61ms]
+  √  Status code is 403
+  √  Response is an RFC 7807 problem detail
+
+└ Invite Participant - User Not Found (404)
+  POST http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5/participants [404 Not Found, 541B, 63ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+└ Invite Participant - Validation Error, Missing userId (400)
+  POST http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5/participants [400 Bad Request, 488B, 63ms]
+  √  Status code is 400
+  √  Response is an RFC 7807 problem detail
+
+└ Remove Participant - Forbidden, Not the Owner (403)
+  DELETE http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5/participants/0d901840-b2b6-4ecf-bea6-08daf00ffff5 [403 Forbidden, 639B, 70ms]
+  √  Status code is 403
+  √  Response is an RFC 7807 problem detail
+
+└ Respond to Invitation - Forbidden, Wrong User (403)
+  PATCH http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5/participants/0d901840-b2b6-4ecf-bea6-08daf00ffff5/status [403 Forbidden, 646B, 84ms]
+  √  Status code is 403
+  √  Response is an RFC 7807 problem detail
+
+└ Respond to Invitation - Validation Error, Invalid Status (400)
+  PATCH http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5/participants/0d901840-b2b6-4ecf-bea6-08daf00ffff5/status [400 Bad Request, 563B, 57ms]
+  √  Status code is 400
+  √  Response is an RFC 7807 problem detail
+
+└ Respond to Invitation - Accept (200)
+  PATCH http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5/participants/0d901840-b2b6-4ecf-bea6-08daf00ffff5/status [200 OK, 471B, 69ms]
+  √  Status code is 200
+  √  Status is now ACCEPTED with a respondedAt timestamp
+
+└ Remove Participant (Owner removes Participant, 204)
+  DELETE http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5/participants/0d901840-b2b6-4ecf-bea6-08daf00ffff5 [204 No Content, 282B, 73ms]
+  √  Status code is 204
+
+└ Get Meeting - Verify Participant Removed
+  GET http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5 [200 OK, 893B, 62ms]
+  √  Status code is 200
+  √  Removed participant no longer appears
+
+□ 05 - Availability
+└ Get Availability - Full Window, No Status Filter (200)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/availability?from=2026-07-27T22:32:39.667Z&to=2026-07-28T23:32:39.667Z [200 OK, 1.03kB, 69ms]
+  √  Status code is 200
+  √  Response has expected fields
+  √  The active meeting's slot shows up as busy
+
+└ Get Availability - Filtered to FREE (200)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/availability?from=2026-07-27T22:32:39.667Z&to=2026-07-28T23:32:39.667Z&status=FREE [200 OK, 762B, 60ms]
+  √  Status code is 200
+  √  busySlots is empty when filtering to FREE
+
+└ Get Availability - Filtered to BUSY (200)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/availability?from=2026-07-27T22:32:39.667Z&to=2026-07-28T23:32:39.667Z&status=BUSY [200 OK, 762B, 68ms]
+  √  Status code is 200
+  √  freeSlots is empty when filtering to BUSY
+
+└ Get Availability - Invalid Range, From After To (422)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/availability?from=2026-07-28T23:32:39.667Z&to=2026-07-27T22:32:39.667Z [422 Unprocessable Entity (WebDAV) (RFC 4918), 562B, 66ms]
+  √  Status code is 422
+  √  Response is an RFC 7807 problem detail
+
+└ Get Availability - Missing Required Query Params (400)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/availability [500 Internal Server Error, 509B, 56ms]
+  1. Status code is 400
+
+└ Get Availability - User Not Found (404)
+  GET http://localhost:8088/users/4f5deec2-6e29-4262-8c24-635c531bbf6b/availability?from=2026-07-27T22:32:39.667Z&to=2026-07-28T23:32:39.667Z [404 Not Found, 538B, 80ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+□ 06 - Meeting Cancellation
+└ Cancel Meeting - Forbidden, Not the Owner (403)
+  DELETE http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5 [403 Forbidden, 589B, 58ms]
+  √  Status code is 403
+  √  Response is an RFC 7807 problem detail
+
+└ Cancel Meeting (Owner, 204) - frees timeSlotId
+  DELETE http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5 [204 No Content, 282B, 75ms]
+  √  Status code is 204
+
+└ Get Meeting - Not Found After Cancel (404)
+  GET http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5 [404 Not Found, 531B, 58ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+└ Cancel Meeting - Not Found, Already Cancelled (404)
+  DELETE http://localhost:8088/meetings/1eb33c70-3165-44e4-88b4-f081686e11c5 [404 Not Found, 531B, 65ms]
+  √  Status code is 404
+  √  Response is an RFC 7807 problem detail
+
+└ Verify Time Slot is FREE Again (200)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/timeslots?page=0&size=20 [200 OK, 939B, 71ms]
+  √  Status code is 200
+  √  timeSlotId is FREE again after cancellation
+
+└ Delete Time Slot (204) - now that no meeting backs it
+  DELETE http://localhost:8088/timeslots/66086289-a7fc-4177-9cc1-3f16b54007e1 [204 No Content, 282B, 62ms]
+  √  Status code is 204
+
+□ 07 - Auth & Authorization
+└ Health Check (public, no auth)
+  GET http://localhost:8088/actuator/health [200 OK, 904B, 15ms]
+  √  Status code is 200
+
+└ Swagger UI (public, no auth)
+  GET http://localhost:8088/v3/api-docs [200 OK, 12.74kB, 8ms]
+  √  Status code is 200
+
+└ Protected Endpoint Without Credentials (401)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/meetings [401 Unauthorized, 546B, 5ms]
+  √  Status code is 401
+
+└ Protected Endpoint With Malformed Basic Header (401)
+  GET http://localhost:8088/users/b952e7fb-2700-4f4a-81ac-e7b11bb79b45/meetings [401 Unauthorized, 546B, 6ms]
+  √  Status code is 401
+
+┌─────────────────────────┬───────────────────┬──────────────────┐
+│                         │          executed │           failed │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              iterations │                 1 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│                requests │                68 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│            test-scripts │                68 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│      prerequest-scripts │                73 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              assertions │               123 │                1 │
+├─────────────────────────┴───────────────────┴──────────────────┤
+│ total run duration: 9.9s                                       │
+├────────────────────────────────────────────────────────────────┤
+│ total data received: 29.26kB (approx)                          │
+├────────────────────────────────────────────────────────────────┤
+│ average response time: 62ms [min: 5ms, max: 138ms, s.d.: 21ms] │
+└────────────────────────────────────────────────────────────────┘
+
+[31m  # [39m[31m failure        [39m[31m detail                                                                              [39m
+[90m    [39m[90m                [39m[90m                                                                                     [39m
+ 1.  AssertionError  Status code is 400                                                                  
+                     expected response to have status code 400 but got 500                               
+                     at assertion:0 in test-script                                                       
+                     inside "05 - Availability / Get Availability - Missing Required Query Params (400)" 
