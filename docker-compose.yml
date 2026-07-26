@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: doodle-postgres
+    environment:
+      POSTGRES_DB: doodle
+      POSTGRES_USER: doodle
+      POSTGRES_PASSWORD: doodle
+    ports:
+      # Host-side 5433 avoids clashing with a locally-running Postgres on 5432; the
+      # app itself talks to this container over the Docker network as "postgres:5432"
+      # regardless of the host mapping.
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doodle -d doodle"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: doodle-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/doodle
+      SPRING_DATASOURCE_USERNAME: doodle
+      SPRING_DATASOURCE_PASSWORD: doodle
+      # Pinned independently of whatever server.port is set to for local (non-docker)
+      # runs, so the container's internal port - and the host mapping below - stay
+      # stable regardless of local dev port choice.
+      SERVER_PORT: 8080
+      # Ships traces to the collector below instead of application.yml's localhost default.
+      OTEL_EXPORTER_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8088:8080"
+
+volumes:
+  postgres-data:
+  prometheus-data:
+  tempo-data:
+  loki-data:
+  grafana-data:
