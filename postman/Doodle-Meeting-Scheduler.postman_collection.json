@@ -1,0 +1,3109 @@
+{
+  "info": {
+    "name": "Doodle Meeting Scheduler API",
+    "_postman_id": "a3f0d6f0-6b1a-4c9e-9a5b-doodle-scheduler",
+    "description": "Full scenario-coverage collection for the Doodle-style meeting scheduler backend\n(Spring Boot, `com.doodle.challenge`) - Users, Time Slots, Meetings, Participants,\nand Availability.\n\n**How to run**\n- Run the whole collection top-to-bottom with the Collection Runner (folders 01-07\n  are ordered as one continuous story: register users, build a calendar, schedule a\n  meeting, exercise participants/availability against it, then cancel it last).\n- Individual requests can also be run standalone once the chain has executed at\n  least once in the session, since IDs/timestamps are cached as collection variables.\n- Re-running the whole collection from scratch is safe: emails are randomized per run\n  (`{{$randomUUID}}`), so user registration never collides with a previous run.\n\n**Auth**: every endpoint requires `Authorization: Basic base64(email:password)`\nexcept `POST /users`, Swagger/OpenAPI docs, and the health/metrics actuator endpoints\n(see `SecurityConfig`). Each request in this collection sets its own Basic Auth using\nwhichever persona (owner / participant / outsider) the scenario calls for.\n\n**Errors**: all error responses are RFC 7807 `ProblemDetail` bodies\n(`type`, `title`, `status`, `detail`) - see `GlobalExceptionHandler`.\n\n**Base URL**: defaults to `http://localhost:8080` (plain `mvn spring-boot:run` /\nlocal run). If you're using the bundled `docker-compose.yml` instead, the app is\npublished on the host as `http://localhost:8088` - update the `baseUrl` variable\n(or the imported environment) accordingly.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Seed reusable future timestamps once per Runner session, so every",
+          "// request in the chain (create/reschedule/overlap/availability) agrees",
+          "// on the same slot boundaries without recomputing them mid-run.",
+          "if (!pm.collectionVariables.get('slot1Start')) {",
+          "    const day = 24 * 60 * 60 * 1000;",
+          "    const hour = 60 * 60 * 1000;",
+          "    const iso = (offsetMs) => new Date(Date.now() + offsetMs).toISOString();",
+          "    pm.collectionVariables.set('slot1Start', iso(day + 9 * hour));",
+          "    pm.collectionVariables.set('slot1End', iso(day + 9.5 * hour));",
+          "    pm.collectionVariables.set('slot2Start', iso(day + 11 * hour));",
+          "    pm.collectionVariables.set('slot2End', iso(day + 11.5 * hour));",
+          "    pm.collectionVariables.set('slot2RescheduledStart', iso(day + 13 * hour));",
+          "    pm.collectionVariables.set('slot2RescheduledEnd', iso(day + 13.5 * hour));",
+          "    pm.collectionVariables.set('meetingRescheduleStart', iso(day + 15 * hour));",
+          "    pm.collectionVariables.set('meetingRescheduleEnd', iso(day + 15.5 * hour));",
+          "    pm.collectionVariables.set('availabilityFrom', iso(day - hour));",
+          "    pm.collectionVariables.set('availabilityTo', iso(2 * day));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "ownerEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ownerPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ownerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "participantEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "participantPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "participantId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "outsiderEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "outsiderPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "outsiderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wrongPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "timeSlotId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "freeSlotId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "scratchSlotId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "meetingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slot1Start",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slot1End",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slot2Start",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slot2End",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slot2RescheduledStart",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slot2RescheduledEnd",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "meetingRescheduleStart",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "meetingRescheduleEnd",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "partialOverlapStart",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "partialOverlapEnd",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "availabilityFrom",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "availabilityTo",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Users",
+      "item": [
+        {
+          "name": "Register Owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Registers the user who will own every Meeting/TimeSlot created later in this collection. Registration is on the security permit-list, so no credentials are sent.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ada Owner\",\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"{{ownerPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('ownerEmail', pm.variables.replaceIn('owner.{{$randomUUID}}@example.com'));",
+                  "pm.collectionVariables.set('ownerPassword', 'correct-horse-battery-staple');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Response has expected fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"id\");\n    pm.expect(json).to.have.property(\"name\");\n    pm.expect(json).to.have.property(\"email\");\n    pm.expect(json).to.have.property(\"createdAt\");\n});",
+                  "pm.collectionVariables.set('ownerId', pm.response.json().id);",
+                  "pm.test(\"passwordHash is never exposed\", function () { pm.expect(pm.response.json()).to.not.have.property(\"passwordHash\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Participant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "A second user who will be invited to the owner's meeting.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Grace Participant\",\n  \"email\": \"{{participantEmail}}\",\n  \"password\": \"{{participantPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('participantEmail', pm.variables.replaceIn('participant.{{$randomUUID}}@example.com'));",
+                  "pm.collectionVariables.set('participantPassword', 'correct-horse-battery-staple');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('participantId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Outsider (never invited)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "A third user with no relationship to the meeting - used to exercise 403 Forbidden scenarios (non-owner mutation, responding on someone else's behalf).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Marlow Outsider\",\n  \"email\": \"{{outsiderEmail}}\",\n  \"password\": \"{{outsiderPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('outsiderEmail', pm.variables.replaceIn('outsider.{{$randomUUID}}@example.com'));",
+                  "pm.collectionVariables.set('outsiderPassword', 'correct-horse-battery-staple');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('outsiderId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register User - Validation Error (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Blank name, malformed email, and a password under the 8-character minimum should all be rejected by bean validation in one shot.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"email\": \"not-an-email\",\n  \"password\": \"short\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});",
+                  "pm.test(\"Validation detail mentions all three invalid fields\", function () {\n    const detail = pm.response.json().detail;\n    pm.expect(detail).to.include(\"name\");\n    pm.expect(detail).to.include(\"email\");\n    pm.expect(detail).to.include(\"password\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register User - Duplicate Email (409/400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Re-registering the owner's email should be rejected - exact status depends on how the unique constraint violation is mapped (a 500 here would indicate a missing exception handler worth flagging).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ada Clone\",\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"correct-horse-battery-staple\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Duplicate email is rejected, not silently accepted\", function () {\n    pm.expect(pm.response.code).to.not.equal(201);\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User by Id (Owner)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Returns the owner's own profile\", function () { pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"ownerId\")); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User - Not Found (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{$randomUUID}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User - Unauthorized, No Credentials (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Every endpoint except POST /users, Swagger, and health/metrics requires Basic auth. This request deliberately omits credentials."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User - Unauthorized, Bad Credentials (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{wrongPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('wrongPassword', 'definitely-not-the-password');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "User registration and lookup. Also covers the Basic Auth permit-list (registration is open, everything else requires credentials) and validation/uniqueness edge cases."
+    },
+    {
+      "name": "02 - Time Slots",
+      "item": [
+        {
+          "name": "Create Time Slot - Primary (for the Meeting later)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{ownerId}}/timeslots",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "This slot is converted into a Meeting in folder 03, which is what drives the \"slot not free\" / \"slot backs an active meeting\" conflict scenarios later.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{slot1Start}}\",\n  \"endTime\": \"{{slot1End}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('timeSlotId', pm.response.json().id);",
+                  "pm.test(\"New slot starts FREE\", function () { pm.expect(pm.response.json().status).to.eql(\"FREE\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Time Slot - Overlapping (409 Conflict)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{ownerId}}/timeslots",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Same owner, exact same range as the slot just created - SlotOverlapValidator must reject this.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{slot1Start}}\",\n  \"endTime\": \"{{slot1End}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Time Slot - Partial Overlap (409 Conflict)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{ownerId}}/timeslots",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Starts 15 minutes into slot 1 and extends past it - overlap detection must catch partial overlaps, not just identical ranges.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{partialOverlapStart}}\",\n  \"endTime\": \"{{partialOverlapEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s1 = new Date(pm.collectionVariables.get('slot1Start')).getTime();",
+                  "const e1 = new Date(pm.collectionVariables.get('slot1End')).getTime();",
+                  "pm.collectionVariables.set('partialOverlapStart', new Date(s1 + 15 * 60 * 1000).toISOString());",
+                  "pm.collectionVariables.set('partialOverlapEnd', new Date(e1 + 15 * 60 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Time Slot - Validation Error (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{ownerId}}/timeslots",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Missing startTime and endTime - both are @NotNull.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Time Slot - Invalid Range, Start After End (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{ownerId}}/timeslots",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "startTime/endTime are both present (passes bean validation) but reversed, so TimeRange.of throws InvalidTimeRangeException -> 422, distinct from the 400s above.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{slot2End}}\",\n  \"endTime\": \"{{slot2Start}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 422\", function () { pm.response.to.have.status(422); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Time Slot - User Not Found (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{$randomUUID}}/timeslots",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{slot2Start}}\",\n  \"endTime\": \"{{slot2End}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Time Slot - Second (for reschedule/status/delete demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{ownerId}}/timeslots",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{slot2Start}}\",\n  \"endTime\": \"{{slot2End}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('freeSlotId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Time Slots (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/timeslots?page=0&size=20",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Response has expected fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"content\");\n    pm.expect(json).to.have.property(\"page\");\n    pm.expect(json).to.have.property(\"size\");\n    pm.expect(json).to.have.property(\"totalElements\");\n    pm.expect(json).to.have.property(\"totalPages\");\n});",
+                  "pm.test(\"Both slots created so far are present\", function () { pm.expect(pm.response.json().totalElements).to.be.at.least(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Time Slots - Page Size Capped at 100",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/timeslots?page=0&size=99999",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Requesting an oversized page size should be silently capped to MAX_PAGE_SIZE (100), not rejected or honored as-is."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Page size is capped, not honored verbatim\", function () { pm.expect(pm.response.json().size).to.equal(100); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Time Slot - Reschedule FREE Slot (200)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/timeslots/{{freeSlotId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{slot2RescheduledStart}}\",\n  \"endTime\": \"{{slot2RescheduledEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Range was updated\", function () { pm.expect(pm.response.json().startTime).to.eql(pm.collectionVariables.get(\"slot2RescheduledStart\")); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Time Slot - Not Found (404)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/timeslots/{{$randomUUID}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{slot2Start}}\",\n  \"endTime\": \"{{slot2End}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change Time Slot Status - Validation Error (400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/timeslots/{{freeSlotId}}/status",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "status is @NotNull - an empty body must fail validation before reaching the service.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change Time Slot Status - Mark BUSY (200)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/timeslots/{{freeSlotId}}/status",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Manually toggling status BUSY without a backing meeting - this is what the next request uses to prove delete is rejected purely on status, independent of whether a Meeting actually references the slot.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BUSY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Status is now BUSY\", function () { pm.expect(pm.response.json().status).to.eql(\"BUSY\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Time Slot - Conflict, Slot is BUSY (409)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/timeslots/{{freeSlotId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change Time Slot Status - Mark FREE Again (200)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/timeslots/{{freeSlotId}}/status",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"FREE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Time Slot (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/timeslots/{{freeSlotId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Time Slot - Already Deleted, Not Found (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/timeslots/{{freeSlotId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Soft-deleted slots are treated as not-found on subsequent access."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "CRUD over a user's calendar slots: creation with overlap detection, pagination, rescheduling, manual FREE/BUSY toggling, and deletion rules. Uses a second, disposable slot (freeSlotId) so the primary slot (timeSlotId) stays available for the Meeting scenarios in folder 03."
+    },
+    {
+      "name": "03 - Meetings",
+      "item": [
+        {
+          "name": "Schedule Meeting (converts timeSlotId, no initial invitees)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Converts the FREE slot from folder 02 into a Meeting. This marks the slot BUSY, which the next few requests rely on to demonstrate conflict handling.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timeSlotId\": \"{{timeSlotId}}\",\n  \"title\": \"Sprint Planning\",\n  \"description\": \"Plan the next two-week sprint\",\n  \"participantIds\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('meetingId', pm.response.json().id);",
+                  "pm.test(\"Owner is auto-added as an ACCEPTED OWNER participant\", function () {\n    const owner = pm.response.json().participants.find(p => p.userId === pm.collectionVariables.get(\"ownerId\"));\n    pm.expect(owner).to.exist;\n    pm.expect(owner.role).to.eql(\"OWNER\");\n    pm.expect(owner.status).to.eql(\"ACCEPTED\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Schedule Meeting - Slot Not Free (409 Conflict)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timeSlotId\": \"{{timeSlotId}}\",\n  \"title\": \"Double Booking Attempt\",\n  \"description\": \"Should fail - slot is already BUSY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Schedule Meeting - Time Slot Not Found (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timeSlotId\": \"{{$randomUUID}}\",\n  \"title\": \"Ghost Slot Meeting\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Schedule Meeting - Validation Error, Missing Fields (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"No timeSlotId or title supplied\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Schedule Meeting - Invitee Not Found (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{ownerId}}/timeslots",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Creates a throwaway FREE slot, then the next request tries to schedule a meeting on it inviting a non-existent user - the whole operation should roll back (404, not a partially-created meeting).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{meetingRescheduleStart}}\",\n  \"endTime\": \"{{meetingRescheduleEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('scratchSlotId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Schedule Meeting - Invitee Not Found, Follow-up (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timeSlotId\": \"{{scratchSlotId}}\",\n  \"title\": \"Meeting With Ghost Invitee\",\n  \"participantIds\": [\n    \"{{$randomUUID}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Time Slot - Conflict, Slot Not Free (409)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/timeslots/{{timeSlotId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Rescheduling is only allowed on a FREE slot; timeSlotId is BUSY (backing the meeting scheduled above).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{meetingRescheduleStart}}\",\n  \"endTime\": \"{{meetingRescheduleEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Time Slot - Conflict, Backs an Active Meeting (409)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/timeslots/{{timeSlotId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Meeting by Id (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Response has expected fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"id\");\n    pm.expect(json).to.have.property(\"title\");\n    pm.expect(json).to.have.property(\"ownerId\");\n    pm.expect(json).to.have.property(\"timeSlotId\");\n    pm.expect(json).to.have.property(\"participants\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Meeting - Not Found (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/meetings/{{$randomUUID}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Meetings for Owner (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/meetings?page=0&size=20",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Includes the scheduled meeting\", function () {\n    const ids = pm.response.json().content.map(m => m.id);\n    pm.expect(ids).to.include(pm.collectionVariables.get(\"meetingId\"));\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Meeting (Owner, 200)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sprint Planning (rescheduled)\",\n  \"description\": \"Plan the next two-week sprint - moved out by a day\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Title was updated\", function () { pm.expect(pm.response.json().title).to.eql(\"Sprint Planning (rescheduled)\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Meeting - Forbidden, Not the Owner (403)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{outsiderEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{outsiderPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "MeetingPolicy restricts update/cancel/participant-management to the owner only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Hijacked Title\",\n  \"description\": \"An outsider should not be able to do this\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () { pm.response.to.have.status(403); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Meeting - Validation Error, Blank Title (400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"\",\n  \"description\": \"Blank title should be rejected\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Meeting - Not Found (404)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{$randomUUID}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Does not matter\",\n  \"description\": \"Meeting does not exist\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Scheduling (FREE slot -> Meeting conversion), lookup, owner-only updates, and the resulting knock-on conflicts on the underlying time slot (not-free, backs-a-meeting). Cancellation lives in folder 06, after Availability and Participants, so the meeting stays active long enough for those scenarios to use it."
+    },
+    {
+      "name": "04 - Participants",
+      "item": [
+        {
+          "name": "Invite Participant (Owner invites Participant, 201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}/participants",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{participantId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"New participant starts INVITED\", function () {\n    const json = pm.response.json();\n    pm.expect(json.userId).to.eql(pm.collectionVariables.get(\"participantId\"));\n    pm.expect(json.role).to.eql(\"PARTICIPANT\");\n    pm.expect(json.status).to.eql(\"INVITED\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite Participant - Duplicate (409 Conflict)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}/participants",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "The same user cannot be invited twice.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{participantId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", function () { pm.response.to.have.status(409); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite Participant - Forbidden, Not the Owner (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}/participants",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{participantEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{participantPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Only the meeting owner may invite - a fellow participant cannot invite others.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{outsiderId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () { pm.response.to.have.status(403); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite Participant - User Not Found (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}/participants",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{$randomUUID}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite Participant - Validation Error, Missing userId (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}/participants",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove Participant - Forbidden, Not the Owner (403)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}/participants/{{participantId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{outsiderEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{outsiderPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Removal is owner-only, same as inviting."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () { pm.response.to.have.status(403); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Respond to Invitation - Forbidden, Wrong User (403)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}/participants/{{participantId}}/status",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{outsiderEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{outsiderPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Responding to an invitation is not owner-gated, but IS restricted to the invited user themselves - the outsider cannot accept on the participant's behalf.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACCEPTED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () { pm.response.to.have.status(403); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Respond to Invitation - Validation Error, Invalid Status (400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}/participants/{{participantId}}/status",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{participantEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{participantPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "INVITED is a structurally valid enum value but not a valid response - the service (not bean validation) rejects anything other than ACCEPTED/DECLINED.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"INVITED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Respond to Invitation - Accept (200)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}/participants/{{participantId}}/status",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{participantEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{participantPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACCEPTED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Status is now ACCEPTED with a respondedAt timestamp\", function () {\n    const json = pm.response.json();\n    pm.expect(json.status).to.eql(\"ACCEPTED\");\n    pm.expect(json.respondedAt).to.not.be.null;\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove Participant (Owner removes Participant, 204)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}/participants/{{participantId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Meeting - Verify Participant Removed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Removed participant no longer appears\", function () {\n    const ids = pm.response.json().participants.map(p => p.userId);\n    pm.expect(ids).to.not.include(pm.collectionVariables.get(\"participantId\"));\n});"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Invite / respond / remove lifecycle on the meeting created in folder 03. Covers owner-only enforcement, self-only response enforcement, duplicate-invite conflicts, and the not-a-real-status validation branch."
+    },
+    {
+      "name": "05 - Availability",
+      "item": [
+        {
+          "name": "Get Availability - Full Window, No Status Filter (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/availability?from={{availabilityFrom}}&to={{availabilityTo}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "timeSlotId is BUSY (backing the active meeting) and scratchSlotId is FREE - both should fall in this window."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Response has expected fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"userId\");\n    pm.expect(json).to.have.property(\"windowStart\");\n    pm.expect(json).to.have.property(\"windowEnd\");\n    pm.expect(json).to.have.property(\"freeSlots\");\n    pm.expect(json).to.have.property(\"busySlots\");\n});",
+                  "pm.test(\"The active meeting's slot shows up as busy\", function () {\n    const ids = pm.response.json().busySlots.map(s => s.id);\n    pm.expect(ids).to.include(pm.collectionVariables.get(\"timeSlotId\"));\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Availability - Filtered to FREE (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/availability?from={{availabilityFrom}}&to={{availabilityTo}}&status=FREE",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"busySlots is empty when filtering to FREE\", function () { pm.expect(pm.response.json().busySlots).to.have.lengthOf(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Availability - Filtered to BUSY (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/availability?from={{availabilityFrom}}&to={{availabilityTo}}&status=BUSY",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"freeSlots is empty when filtering to BUSY\", function () { pm.expect(pm.response.json().freeSlots).to.have.lengthOf(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Availability - Invalid Range, From After To (422)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/availability?from={{availabilityTo}}&to={{availabilityFrom}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "from/to are swapped, so TimeRange.of rejects the window the same way it rejects a slot with start after end."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 422\", function () { pm.response.to.have.status(422); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Availability - Missing Required Query Params (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/availability",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "from and to have no defaults - omitting them should fail request binding, not NPE."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Availability - User Not Found (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{$randomUUID}}/availability?from={{availabilityFrom}}&to={{availabilityTo}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "The aggregated free/busy view for a user over a window, run while the meeting from folder 03 is still active so BUSY has a real slot to show."
+    },
+    {
+      "name": "06 - Meeting Cancellation",
+      "item": [
+        {
+          "name": "Cancel Meeting - Forbidden, Not the Owner (403)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{outsiderEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{outsiderPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () { pm.response.to.have.status(403); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel Meeting (Owner, 204) - frees timeSlotId",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Meeting - Not Found After Cancel (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Cancelling hard-deletes the Meeting row (see MeetingService.cancelMeeting), so it should be gone entirely, not just marked cancelled."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel Meeting - Not Found, Already Cancelled (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/meetings/{{meetingId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () { pm.response.to.have.status(404); });",
+                  "pm.test(\"Response is an RFC 7807 problem detail\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"status\");\n    pm.expect(json).to.have.property(\"detail\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Time Slot is FREE Again (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/timeslots?page=0&size=20",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"timeSlotId is FREE again after cancellation\", function () {\n    const slot = pm.response.json().content.find(s => s.id === pm.collectionVariables.get(\"timeSlotId\"));\n    pm.expect(slot).to.exist;\n    pm.expect(slot.status).to.eql(\"FREE\");\n});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Time Slot (204) - now that no meeting backs it",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/timeslots/{{timeSlotId}}",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{ownerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{ownerPassword}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Owner-only cancellation, run last since it hard-deletes the meeting and frees its time slot - everything in folders 03-05 depends on that meeting still existing."
+    },
+    {
+      "name": "07 - Auth & Authorization",
+      "item": [
+        {
+          "name": "Health Check (public, no auth)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/actuator/health",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "On the security permit-list alongside /actuator/health/**, /actuator/prometheus, Swagger UI, and /v3/api-docs/**."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swagger UI (public, no auth)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v3/api-docs",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Protected Endpoint Without Credentials (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/meetings",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Protected Endpoint With Malformed Basic Header (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{ownerId}}/meetings",
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "Authorization",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "Basic not-valid-base64!!",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Sends a syntactically-broken Authorization header (invalid base64) rather than omitting it entirely."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Endpoints on the SecurityConfig permit-list vs. everything else, plus malformed-credential handling."
+    }
+  ]
+}

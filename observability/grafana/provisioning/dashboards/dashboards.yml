@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: doodle-challenge
+    orgId: 1
+    folder: "Doodle Challenge"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
